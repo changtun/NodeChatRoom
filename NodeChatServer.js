@@ -29,13 +29,13 @@ var urlMap = {
   '/getMessage' : function (req, res) {
     var since = qs.parse(url.parse(req.url).query).since;
 	console.log("since= " + since);
-    feed.getMessage(since, function (data) {
-      res.simpleJSON(200, data);
+    messenger.getMessage(since, function (data) {
+      res.responseJSON(200, data);
     });
   },
   '/sendMessage' : function (req, res, json) {
-    feed.newMessage(JSON.parse(json));
-    res.simpleJSON(200, {});
+    messenger.newMessage(JSON.parse(json));
+    res.responseJSON(200, {});
   },
   '/index' : function (res) {
     fs.readFile('NodeChat.html', function (err, data) {
@@ -52,10 +52,8 @@ var urlMap = {
 var dbp = new dbProvider("127.0.0.1",27017);
 
 http.createServer(function (req, res) {
-	// Get the url and associate the function to the handler
-	// or
-	// Trigger the 404
-	handler  = urlMap[url.parse(req.url).pathname] || notFound;
+	// Get the url and associate the function to the handler or Trigger the 404
+	handler  = urlMap[url.parse(req.url).pathname] || notFoundHandler;
 	console.log(url.parse(req.url).pathname);
 	
   if(url.parse(req.url).pathname == "/index"){
@@ -65,20 +63,18 @@ http.createServer(function (req, res) {
 	 if(req.method === "POST"){
 		// We need to process the post but we need to wait until the request's body is available to get the field/value pairs.
 		  req.body = '';
-		  req.addListener('data', function (chunk) {
+		  req.addListener('data', function (chunk){
 									// Build the body from the chunks sent in the post.
-				 					req.body = req.body + chunk;
-								})
-			 .addListener('end', function () {
-									json = JSON.stringify(qs.parse(req.body));
-									handler(req, res, json);
-		      					}
-						);
+									req.body = req.body + chunk; 
+							}).addListener('end', function (){
+										json = JSON.stringify(qs.parse(req.body));
+										handler(req, res, json);
+									});
 	 }else{
 		  handler(req, res);
 	 }
 
-	 res.simpleJSON = function (code, obj) {
+	 res.responseJSON = function (code, obj) {
 		  var body = JSON.stringify(obj);
 		  res.writeHead(code, {
 							"Content-Type": "text/json",
@@ -92,9 +88,8 @@ http.createServer(function (req, res) {
 
 
 // This method handles the feed push and querying.
-var feed = new function () {
-	var real_time_messages = [],
-		msgpool,
+var messenger = new function () {
+	var msgpool,
 		callbacks = [];
 	
 	dbp.getCollection("messagePool",function(error,result){
@@ -116,20 +111,16 @@ var feed = new function () {
 		});
 		// As soon as something is pushed, call the query callback
 		while (callbacks.length > 0){ callbacks.shift().callback([json]); }
-		//real_time_messages.shift();
 	};
 
 	this.getMessage = function (since, callback) {
 		var matching = [];
 		var cursor = msgpool.find({timestamp:{$lt:since}},{"sort":"timestamp"});
-		cursor.count(function(err, count){
-			console.log("Total matches: "+count);
-		});
 		cursor.toArray(function(error,result){
 			if(error){ console.log("ToArray Error"); }
 			else{
 				matching = result;
-				console.log("matching length= " + matching.length);
+				console.log("Total matches: " + matching.length);
 				if (matching.length != 0) {
 					callback(matching);
 				}else {
@@ -140,7 +131,7 @@ var feed = new function () {
 	};
 };
 
-function notFound(req, res) {
+function notFoundHandler(req, res) {
   var notFoundContent = "Not Found\n";
   res.writeHead(404, [ ["Content-Type", "text/plain"]
                       , ["Content-Length", notFoundContent.length]
