@@ -12,7 +12,7 @@
               var username = $("#username").val();
               var msg = $("#message").val();
               var now = new Date();
-              $.post('http://127.0.0.1:9999/sendMessage', {name: username, message: msg, timestamp: now.getTime()},
+              $.post('http://10.10.46.164:9999/sendMessage', {name: username, message: msg, timestamp: now.getTime()},
                 function(data){
                   //alert("message send");
                 }, 'json');
@@ -24,10 +24,10 @@
                 cache: false,
                 dataType: 'json',
                 type: "GET",
-                url: "http://127.0.0.1:9999/getMessage?since=" + since,
+                url: "http://10.10.46.164:9999/getMessage?since=" + since,
                 error: function () {
                     //don't flood the servers on error, wait 10 seconds before retrying
-                    setTimeout(pollMessage, 10*1000);
+                    setTimeout(pollMessage(''), 10*1000);
                 },
                 success: function (json) {
 					showMessage(json);

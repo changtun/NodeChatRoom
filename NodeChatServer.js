@@ -37,6 +37,11 @@ var urlMap = {
     messenger.newMessage(JSON.parse(json));
     res.responseJSON(200, {});
   },
+  '/login' : function (req, res, json) {
+    messenger.userLogin(JSON.parse(json), function(data){
+		res.responseJSON(200, data);
+	});
+  },
   '/index' : function (res) {
     fs.readFile('NodeChat.html', function (err, data) {
       if (err) {
@@ -90,12 +95,20 @@ http.createServer(function (req, res) {
 // This method handles the feed push and querying.
 var messenger = new function () {
 	var msgpool,
+		userpool,
 		callbacks = [];
 	
 	dbp.getCollection("messagePool",function(error,result){
 		if(error){ console.log("Get Collection Error"); }
 		else{
 			msgpool = result;
+		}
+	});
+	
+	dbp.getCollection("userPool",function(error,result){
+		if(error){ console.log("Get Collection Error"); }
+		else{
+			userpool = result;
 		}
 	});
 
@@ -111,6 +124,26 @@ var messenger = new function () {
 		});
 		// As soon as something is pushed, call the query callback
 		while (callbacks.length > 0){ callbacks.shift().callback([json]); }
+	};
+	
+	this.userLogin = function (json, callback) {
+        var matching = [];
+		console.log("id="+json.id+",pwd="+json.pwd);
+		//check the user from mongodb
+		var cursor = userpool.find({"_id": json.id},{"pwd": json.pwd});
+		// return the check result
+		cursor.toArray(function(error,result){
+			if(error){ console.log("ToArray Error"); }
+			else{
+				matching = result;
+				console.log("Total matches: " + matching.length);
+				if (matching.length != 0) {
+					callback("OK");
+				}else {
+					callback("FAIL");
+				}
+			}
+		});
 	};
 
 	this.getMessage = function (since, callback) {
